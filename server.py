@@ -2,6 +2,7 @@ import socket, time
 import requests, json
 from influxdb import InfluxDBClient as influxdb
 
+# insert your information
 HOST = '10.40.45.19'
 PORT = 12345
 
@@ -10,50 +11,65 @@ server_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print('Socket created')
 
 try:
-	server_soc.bind((HOST, PORT))
+    server_soc.bind((HOST, PORT))
 except socket.error:
-	print('Bind failed')
+    print('Bind failed')
 
 # ready to connect with client
 server_soc.listen()
-print('Conneted...')
+print('Connected...')
 
-# awaiting for message
+client_soc, addr = server_soc.accept()
+print('Connected client address: ', addr)
+
+# waiting for message
 while True:
-    client_soc, addr = server_soc.accept()
-    print('Connected client addr: ', addr)
-    
     data = client_soc.recv(1024).decode()
-    print(f'recv msg: {data}')
+    print(f'Received massage: {data}')
 
-    if data == 'On':
-        # shoot
-        dbdata = [{
-            'measurement' : 'plant',
-            'tags':{
-                'VisionUni' : '2410',
+    # Android App sends a signal to watering
+    if data == 'ON':
+        # Run EV3
+"""
+check
+"""
+        # And shoot data for DB
+        db_data = [{
+            'measurement': 'plant',
+            'tags': {
+                'VisionUni': '2410',
             },
-            'fields':{
-                'check' : 'true',
+            'fields': {
+                'check': 'true',
             }
         }]
+
         client = None
+        reply = 'SUCCESS'
+
         try:
-            client = influxdb('localhost',8086,'root','root','plant')
+            client = influxdb('localhost', 8086, 'root', 'root', 'plant')
         except Exception as e:
-            print("Exception "+str(e))
-        
+            print("Exception ", str(e))
+
         if client is not None:
             try:
-                client.write_points(dbdata)
+                client.write_points(db_data)
             except Exception as e:
-                print("Exception write : "+str(e))
+                print("Exception write : ", str(e))
+                reply = 'ERROR'
             finally:
                 client.close()
-        reply = 'succeed'
+
         # Sending reply
         client_soc.send(bytes(reply, 'utf-8'))
 
+    # Android App sends a signal to show DB data
+    if data == 'SHOW_DATA':
+        pass
+"""
+check
+"""
 # lose connections
 time.sleep(3)
 server_soc.close()
